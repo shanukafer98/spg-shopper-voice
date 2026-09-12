@@ -1,0 +1,241 @@
+<!-- SPG SHOPPER VOICE — app shell -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#4F46E5">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>SPG Shopper Voice</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Sinhala:wght@400;600&display=swap" rel="stylesheet">
+<?!= include('Styles'); ?>
+
+<div class="app">
+
+  <!-- ===================== LOGIN ===================== -->
+  <section id="s-login" class="screen login no-nav active">
+    <div class="brand-mark">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/>
+        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/>
+      </svg>
+    </div>
+    <h1>SPG Shopper Voice</h1>
+    <p class="sub">Capture real shopper feedback</p>
+
+    <div class="card">
+      <label class="label" for="spgCode">Enter SPG Code</label>
+      <input id="spgCode" class="input" type="text" inputmode="text" autocomplete="off"
+             autocapitalize="characters" spellcheck="false" placeholder="SPG001" maxlength="12">
+      <div class="btn-row"><button id="btnLogin" class="btn">Continue</button></div>
+      <p class="sub" style="text-align:center;font-size:12.5px">No Google sign-in needed</p>
+    </div>
+    <div class="card hide" id="apiSetup" style="text-align:left">
+      <div class="eyebrow">One-time setup</div>
+      <p class="sub" style="margin-top:6px">Paste the Apps Script web app address for this shop group. You only do this once on this phone.</p>
+      <input id="apiInput" class="input" type="url" inputmode="url" autocapitalize="off" spellcheck="false"
+             style="text-align:left;letter-spacing:0;text-transform:none;font-size:14px;font-weight:500"
+             placeholder="https://script.google.com/macros/s/.../exec">
+      <div class="btn-row"><button class="btn sm" id="btnApiSave">Save address</button></div>
+    </div>
+    <p class="sub" id="micWarning" style="font-size:12px;max-width:380px" hidden></p>
+  </section>
+
+  <!-- ===================== HOME ===================== -->
+  <section id="s-home" class="screen">
+    <div class="greet">
+      <div>
+        <h1 id="greeting">Good Morning</h1>
+        <p class="sub">Ready to capture shopper feedback?</p>
+      </div>
+      <div class="avatar" id="avatar">SPG</div>
+    </div>
+
+    <div class="card">
+      <div class="stat">
+        <div>
+          <div class="eyebrow">Today's Feedback</div>
+          <div class="n" id="todayCount">0</div>
+        </div>
+        <span class="pill" id="regionPill">—</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <button class="btn" onclick="App.startNew()">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        New Feedback
+      </button>
+      <button class="btn ghost sm" style="margin-top:10px" onclick="App.go('history')">View History</button>
+    </div>
+
+    <div style="flex:1"></div>
+    <p class="sub" style="text-align:center;font-size:12px">
+      Signed in as <b id="whoami">—</b> ·
+      <a href="#" onclick="App.go('diag');return false" style="color:var(--accent)">Check this phone</a> ·
+      <a href="#" onclick="App.logout();return false" style="color:var(--accent)">Switch SPG</a>
+    </p>
+  </section>
+
+  <!-- ===================== NEW FEEDBACK / RECORD ===================== -->
+  <section id="s-record" class="screen">
+    <h2>New Feedback</h2>
+    <p class="sub">Ask the shopper for feedback, then record their answer.</p>
+
+    <div class="card" id="setupCard">
+      <label class="label" for="product">Product</label>
+      <select id="product" class="select"></select>
+
+      <label class="consent" for="consent">
+        <input type="checkbox" id="consent">
+        <span><b>Shopper agreed to the recording.</b><br>
+        Please ask the shopper for permission before recording their feedback.</span>
+      </label>
+
+
+    </div>
+
+    <div class="card">
+      <div class="mic-wrap">
+        <button id="micBtn" class="mic" disabled aria-label="Start recording">
+          <svg id="micIcon" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/>
+          </svg>
+        </button>
+        <div class="mic-label" id="micLabel">Tap to Record</div>
+        <div class="timer hide" id="timer">00:00</div>
+        <canvas id="waveform" class="hide"></canvas>
+        <div class="mic-hint" id="micHint">Confirm consent and choose a product to enable recording.</div>
+        <button id="stopBtn" class="btn danger hide">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2.5"/></svg>
+          Stop Recording
+        </button>
+      </div>
+    </div>
+
+    <div class="card hide" id="liveCard">
+      <div class="eyebrow">Live transcription · සිංහල</div>
+      <div class="transcript live si" id="livePreview" style="margin-top:8px"></div>
+    </div>
+  </section>
+
+  <!-- ===================== REVIEW ===================== -->
+  <section id="s-review" class="screen">
+    <h2>Feedback Recorded</h2>
+    <p class="sub" id="reviewMeta">—</p>
+
+    <div class="card">
+      <div class="eyebrow">Play recording</div>
+      <audio id="player" controls preload="metadata"></audio>
+      <div class="meta">
+        <span class="chip" id="chipProduct">—</span>
+        <span class="chip" id="chipDuration">—</span>
+        <span class="chip" id="chipId">—</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="eyebrow">Transcript</div>
+      <p class="sub" id="transcriptNote" style="margin-top:8px">
+        The Sinhala transcript is written automatically within a few minutes. You do not need to do anything.</p>
+      <button class="btn ghost sm" id="btnNoteToggle" style="margin-top:12px">Add a note (optional)</button>
+      <textarea id="transcriptEdit" class="textarea si hide" style="margin-top:10px"
+                placeholder="Anything the recording will not capture — shop, mood, what the shopper was holding."></textarea>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn ghost" style="flex:0 0 40%" onclick="App.discard()">Discard</button>
+      <button class="btn" id="btnSave" onclick="App.save()">
+        <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+        Save Feedback
+      </button>
+    </div>
+  </section>
+
+  <!-- ===================== SUCCESS ===================== -->
+  <section id="s-success" class="screen success no-nav">
+    <div class="tick">
+      <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+    </div>
+    <h1>Feedback Saved</h1>
+    <p class="sub">Recording saved. The Sinhala transcript is being written automatically.</p>
+    <div class="idbox" id="successId">FB-00000000-000000</div>
+    <div style="width:100%;max-width:360px;margin-top:26px">
+      <button class="btn" onclick="App.startNew()">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        Record Another
+      </button>
+      <button class="btn ghost" style="margin-top:10px" onclick="App.go('history')">View History</button>
+    </div>
+  </section>
+
+  <!-- ===================== HISTORY ===================== -->
+  <section id="s-history" class="screen">
+    <h2>History</h2>
+    <p class="sub" id="historySub">Your recent shopper feedback</p>
+    <div id="historyList" style="margin-top:16px"></div>
+  </section>
+
+  <!-- ===================== DIAGNOSTICS ===================== -->
+  <section id="s-diag" class="screen">
+    <h2>Check this phone</h2>
+    <p class="sub">Run this once on each phone before the field team uses it. Send the report to whoever set the app up.</p>
+
+    <div class="card">
+      <div class="eyebrow">Capture mode for this phone</div>
+      <p class="sub" style="font-size:12.5px;margin-top:6px">Set once per phone. “Audio only” is the reliable default and works everywhere.</p>
+      <div class="modes" id="modes" style="margin-top:12px">
+        <button type="button" class="mode on" data-mode="AUDIO">Audio only<br>(default)</button>
+        <button type="button" class="mode" data-mode="BOTH">Audio +<br>live text</button>
+        <button type="button" class="mode" data-mode="TRANSCRIPT">Live text<br>only</button>
+      </div>
+      <p class="sub" id="modeHint" style="font-size:12.5px;margin-top:10px"></p>
+    </div>
+
+    <div class="card">
+      <div class="eyebrow">This device</div>
+      <div id="diagFacts" style="margin-top:10px;font-size:13.5px;line-height:1.9"></div>
+    </div>
+
+    <div class="card">
+      <button class="btn" id="btnDiagRun">Run microphone test</button>
+      <p class="sub" style="font-size:12.5px">Takes about 12 seconds. Say a few words in Sinhala when it asks.</p>
+      <div id="diagLog" style="margin-top:6px;font-family:ui-monospace,Menlo,monospace;font-size:12px;
+           line-height:1.85;white-space:pre-wrap;word-break:break-word"></div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn ghost" onclick="App.go('home')">Back</button>
+      <button class="btn" id="btnDiagCopy">Copy report</button>
+    </div>
+  </section>
+
+  <!-- ===================== BOTTOM NAV ===================== -->
+  <nav class="nav" id="nav">
+    <div class="nav-inner">
+      <button data-go="home" class="on">
+        <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 9.8V21h14V9.8"/></svg>
+        Home
+      </button>
+      <button data-go="record">
+        <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/></svg>
+        Record
+      </button>
+      <button data-go="history">
+        <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>
+        History
+      </button>
+    </div>
+  </nav>
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="overlay" id="overlay">
+  <div style="display:grid;place-items:center">
+    <div class="spinner"></div>
+    <p id="overlayText">Working…</p>
+  </div>
+</div>
+
+<?!= include('JavaScript'); ?>
