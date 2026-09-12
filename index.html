@@ -10,6 +10,21 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Sinhala:wght@400;600&display=swap" rel="stylesheet">
+
+<!-- ==================================================================
+     SETTING — the only line you need to edit in this file.
+
+     Paste your Apps Script Web App URL between the quotes.
+     It is the address ending in  /exec  that you copied after
+     Deploy > New deployment > Web app.
+
+     Example:
+     var SPG_API_URL = "https://script.google.com/macros/s/AKfycbx.../exec";
+     ================================================================== -->
+<script>
+  var SPG_API_URL = "https://script.google.com/macros/s/AKfycbwBv-QSXwA2ExytE7MWe3SKWU1gulmgTY4yO83w0tHYwzYlak3lKrVH8MUK3Vi-E8ke/exec";
+</script>
+
 </head>
 <body>
 <!-- SPG SHOPPER VOICE — app shell -->
@@ -129,15 +144,6 @@ h3{font-size:15px;font-weight:650}
 .consent input{width:22px;height:22px;margin:1px 0 0;accent-color:var(--accent);flex:none}
 .consent span{font-size:13.5px;line-height:1.5;color:var(--ink-2)}
 .consent.plain{background:transparent;border-style:dashed}
-.modes{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
-.mode{padding:12px 6px;border-radius:14px;border:1.5px solid var(--line);background:var(--glass-2);
-  font-size:12.5px;font-weight:650;line-height:1.35;cursor:pointer;color:var(--ink-2);
-  transition:border-color .16s, background .16s, color .16s}
-.mode.on{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
-.diag-row{display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid var(--line);padding:5px 0}
-.diag-row:last-child{border-bottom:0}
-.diag-row b{font-weight:650}
-.diag-ok{color:var(--ok)} .diag-bad{color:var(--rec)} .diag-warn{color:var(--warn)}
 .notice{font-size:13px;line-height:1.55;color:var(--ink-2);background:var(--accent-soft);
   border:1px solid var(--line);border-radius:var(--r-sm);padding:13px 14px;margin-top:12px}
 
@@ -276,19 +282,16 @@ audio{width:100%;margin-top:10px;border-radius:12px}
     <p class="sub">Capture real shopper feedback</p>
 
     <div class="card">
-      <label class="label" for="spgCode">Enter SPG Code</label>
+      <label class="label" for="spgCode">SPG Code</label>
       <input id="spgCode" class="input" type="text" inputmode="text" autocomplete="off"
              autocapitalize="characters" spellcheck="false" placeholder="SPG001" maxlength="12">
+
+      <label class="label" for="outletCode" style="margin-top:14px">Outlet Code</label>
+      <input id="outletCode" class="input" type="text" inputmode="text" autocomplete="off"
+             autocapitalize="characters" spellcheck="false" placeholder="OUT001" maxlength="12">
+
       <div class="btn-row"><button id="btnLogin" class="btn">Continue</button></div>
       <p class="sub" style="text-align:center;font-size:12.5px">No Google sign-in needed</p>
-    </div>
-    <div class="card hide" id="apiSetup" style="text-align:left">
-      <div class="eyebrow">One-time setup</div>
-      <p class="sub" style="margin-top:6px">Paste the Apps Script web app address for this shop group. You only do this once on this phone.</p>
-      <input id="apiInput" class="input" type="url" inputmode="url" autocapitalize="off" spellcheck="false"
-             style="text-align:left;letter-spacing:0;text-transform:none;font-size:14px;font-weight:500"
-             placeholder="https://script.google.com/macros/s/.../exec">
-      <div class="btn-row"><button class="btn sm" id="btnApiSave">Save address</button></div>
     </div>
     <p class="sub" id="micWarning" style="font-size:12px;max-width:380px" hidden></p>
   </section>
@@ -309,7 +312,7 @@ audio{width:100%;margin-top:10px;border-radius:12px}
           <div class="eyebrow">Today's Feedback</div>
           <div class="n" id="todayCount">0</div>
         </div>
-        <span class="pill" id="regionPill">—</span>
+        <span class="pill" id="outletPill">—</span>
       </div>
     </div>
 
@@ -323,9 +326,8 @@ audio{width:100%;margin-top:10px;border-radius:12px}
 
     <div style="flex:1"></div>
     <p class="sub" style="text-align:center;font-size:12px">
-      Signed in as <b id="whoami">—</b> ·
-      <a href="#" onclick="App.go('diag');return false" style="color:var(--accent)">Check this phone</a> ·
-      <a href="#" onclick="App.logout();return false" style="color:var(--accent)">Switch SPG</a>
+      <b id="whoami">—</b><br><span id="whereami">—</span> ·
+      <a href="#" onclick="App.logout();return false" style="color:var(--accent)">Change</a>
     </p>
   </section>
 
@@ -366,10 +368,6 @@ audio{width:100%;margin-top:10px;border-radius:12px}
       </div>
     </div>
 
-    <div class="card hide" id="liveCard">
-      <div class="eyebrow">Live transcription · සිංහල</div>
-      <div class="transcript live si" id="livePreview" style="margin-top:8px"></div>
-    </div>
   </section>
 
   <!-- ===================== REVIEW ===================== -->
@@ -429,37 +427,28 @@ audio{width:100%;margin-top:10px;border-radius:12px}
     <div id="historyList" style="margin-top:16px"></div>
   </section>
 
-  <!-- ===================== DIAGNOSTICS ===================== -->
-  <section id="s-diag" class="screen">
-    <h2>Check this phone</h2>
-    <p class="sub">Run this once on each phone before the field team uses it. Send the report to whoever set the app up.</p>
+  <!-- ===================== FEEDBACK DETAIL ===================== -->
+  <section id="s-detail" class="screen">
+    <h2 id="dTitle">Feedback</h2>
+    <p class="sub" id="dMeta">—</p>
 
     <div class="card">
-      <div class="eyebrow">Capture mode for this phone</div>
-      <p class="sub" style="font-size:12.5px;margin-top:6px">Set once per phone. “Audio only” is the reliable default and works everywhere.</p>
-      <div class="modes" id="modes" style="margin-top:12px">
-        <button type="button" class="mode on" data-mode="AUDIO">Audio only<br>(default)</button>
-        <button type="button" class="mode" data-mode="BOTH">Audio +<br>live text</button>
-        <button type="button" class="mode" data-mode="TRANSCRIPT">Live text<br>only</button>
+      <div class="eyebrow">Recording</div>
+      <div id="dPlayer" style="margin-top:4px"></div>
+      <div class="meta">
+        <span class="chip" id="dChipOutlet">—</span>
+        <span class="chip" id="dChipDuration">—</span>
+        <span class="chip" id="dChipId">—</span>
       </div>
-      <p class="sub" id="modeHint" style="font-size:12.5px;margin-top:10px"></p>
     </div>
 
     <div class="card">
-      <div class="eyebrow">This device</div>
-      <div id="diagFacts" style="margin-top:10px;font-size:13.5px;line-height:1.9"></div>
-    </div>
-
-    <div class="card">
-      <button class="btn" id="btnDiagRun">Run microphone test</button>
-      <p class="sub" style="font-size:12.5px">Takes about 12 seconds. Say a few words in Sinhala when it asks.</p>
-      <div id="diagLog" style="margin-top:6px;font-family:ui-monospace,Menlo,monospace;font-size:12px;
-           line-height:1.85;white-space:pre-wrap;word-break:break-word"></div>
+      <div class="eyebrow">Transcript · සිංහල</div>
+      <div id="dTranscript" style="margin-top:10px"></div>
     </div>
 
     <div class="btn-row">
-      <button class="btn ghost" onclick="App.go('home')">Back</button>
-      <button class="btn" id="btnDiagCopy">Copy report</button>
+      <button class="btn ghost" onclick="App.go('history')">Back to History</button>
     </div>
   </section>
 
@@ -500,24 +489,13 @@ audio{width:100%;margin-top:10px;border-radius:12px}
      2. Served by Apps Script (debug only)               -> google.script.run
    ========================================================================== */
 
-/* The Apps Script web app address. Three ways to set it, in priority order:
-     1. paste it here (best — the hosted file then needs no setup at all)
-     2. open the app once as  https://your-site/?api=<exec url>
-     3. type it into the one-time setup box on the login screen
-   Options 2 and 3 remember the address on that phone. */
-var API_URL = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_EXEC_URL_HERE';
-
+/* The Apps Script web app address is set at the top of this file, in the
+   SPG_API_URL line. Nothing else configures it. */
 function resolveApiUrl() {
-  try {
-    var q = new URLSearchParams(window.location.search).get('api');
-    if (q) {
-      localStorage.setItem('apiUrl', q);
-      window.history.replaceState({}, '', window.location.pathname);   // tidy the address
-      return q;
-    }
-  } catch (e) {}
-  if (API_URL.indexOf('PASTE_') !== 0) return API_URL;
-  try { return localStorage.getItem('apiUrl') || ''; } catch (e) { return ''; }
+  if (typeof SPG_API_URL === 'string' && SPG_API_URL.indexOf('PASTE_') !== 0 && SPG_API_URL.trim()) {
+    return SPG_API_URL.trim();
+  }
+  return '';
 }
 
 var App = (function () {
@@ -558,11 +536,11 @@ var App = (function () {
   /* state + tiny helpers                                               */
   /* ------------------------------------------------------------------ */
   var S = {
-    spg: null, products: [], maxSeconds: 120,
+    spg: null, outlet: null, products: [], maxSeconds: 120,
     rec: null, chunks: [], mime: '', stream: null,
     startedAt: 0, duration: 0, timerId: null, rafId: null,
-    audioCtx: null, analyser: null, speech: null, liveText: '', recognising: false, srSupported: false,
-    blob: null, blobUrl: null, current: null, mode: 'BOTH', srError: '', diag: [], diagRec: false, diagSr: false
+    audioCtx: null, analyser: null,
+    blob: null, blobUrl: null, current: null
   };
 
   var $ = function (id) { return document.getElementById(id); };
@@ -590,9 +568,9 @@ var App = (function () {
   /* ------------------------------------------------------------------ */
   /* navigation                                                         */
   /* ------------------------------------------------------------------ */
-  var NAV_SCREENS = { home: 1, record: 1, history: 1, diag: 1 };
+  var NAV_SCREENS = { home: 1, record: 1, history: 1, detail: 1 };
   function go(name) {
-    ['login', 'home', 'record', 'review', 'success', 'history', 'diag'].forEach(function (n) {
+    ['login', 'home', 'record', 'review', 'success', 'history', 'detail'].forEach(function (n) {
       $('s-' + n).classList.toggle('active', n === name);
     });
     $('nav').className = 'nav' + (S.spg && NAV_SCREENS[name] ? ' show' : '');
@@ -600,7 +578,6 @@ var App = (function () {
       b.classList.toggle('on', b.dataset.go === name);
     });
     if (name === 'history') loadHistory();
-    if (name === 'diag') paintDiagFacts();
     window.scrollTo(0, 0);
   }
 
@@ -608,16 +585,27 @@ var App = (function () {
   /* login                                                              */
   /* ------------------------------------------------------------------ */
   function login() {
+    if (!resolveApiUrl()) {
+      toast('App not linked to the server',
+            'Open index.html, put the Apps Script /exec address in the SPG_API_URL line near the top, and upload it again.', 'err');
+      return;
+    }
     var code = ($('spgCode').value || '').trim().toUpperCase();
-    if (!code) { toast('Enter your SPG code', 'For example SPG001', 'err'); return; }
+    var outlet = ($('outletCode').value || '').trim().toUpperCase();
+    if (!code) { toast('Enter your SPG code', 'For example SPG001', 'err'); $('spgCode').focus(); return; }
+    if (!outlet) { toast('Enter the outlet code', 'For example OUT001', 'err'); $('outletCode').focus(); return; }
     busy(true, 'Signing in…');
-    api('bootstrap', { spgCode: code }).then(function (r) {
+    api('bootstrap', { spgCode: code, outletCode: outlet }).then(function (r) {
       busy(false);
       if (!r.ok) { toast('Sign in failed', r.message || 'Please try again.', 'err'); return; }
       S.spg = r.spg;
+      S.outlet = r.outlet;
       S.products = r.products || [];
       S.maxSeconds = r.maxSeconds || 120;
-      try { localStorage.setItem('spgCode', S.spg.code); } catch (e) {}
+      try {
+        localStorage.setItem('spgCode', S.spg.code);
+        localStorage.setItem('outletCode', S.outlet.code);
+      } catch (e) {}
       paintHome(r.todayCount || 0);
       fillProducts();
       go('home');
@@ -628,9 +616,7 @@ var App = (function () {
   }
 
   function logout() {
-    S.spg = null;
-    try { localStorage.removeItem('spgCode'); } catch (e) {}
-    $('spgCode').value = '';
+    S.spg = null; S.outlet = null;
     go('login');
   }
 
@@ -640,7 +626,8 @@ var App = (function () {
     $('greeting').textContent = part + ', ' + S.spg.code;
     $('whoami').textContent = S.spg.name + ' (' + S.spg.code + ')';
     $('avatar').textContent = S.spg.code.replace(/[^0-9]/g, '').slice(-3) || 'SPG';
-    $('regionPill').textContent = S.spg.region || 'Field';
+    $('whereami').textContent = S.outlet.name + (S.outlet.city ? ' · ' + S.outlet.city : '');
+    $('outletPill').textContent = S.outlet.code;
     $('todayCount').textContent = count;
   }
 
@@ -662,22 +649,6 @@ var App = (function () {
     $('product').value = '';
     resetRecorderUI();
     go('record');
-    updateMicState();
-  }
-
-  var MODE_HINTS = {
-    AUDIO: 'Records the shopper. The SPG then dictates the feedback with the keyboard microphone. Works on every phone, including iPhone.',
-    BOTH: 'Tries to record and transcribe at the same time. Many Android phones will not allow both — run the microphone test below before choosing this.',
-    TRANSCRIPT: 'Live Sinhala text only. No audio file is saved, so use this only where the transcript matters more than the recording.'
-  };
-
-  function setMode(m) {
-    S.mode = m;
-    try { localStorage.setItem('captureMode', m); } catch (e) {}
-    Array.prototype.forEach.call(document.querySelectorAll('.mode'), function (b) {
-      b.classList.toggle('on', b.dataset.mode === m);
-    });
-    if ($('modeHint')) $('modeHint').textContent = MODE_HINTS[m];
     updateMicState();
   }
 
@@ -703,11 +674,8 @@ var App = (function () {
     $('timer').textContent = '00:00';
     $('waveform').className = 'hide';
     $('stopBtn').className = 'btn danger hide';
-    $('liveCard').className = 'card hide';
-    $('livePreview').textContent = '';
     $('transcriptEdit').value = '';
     $('setupCard').classList.remove('hide');
-    S.liveText = '';
   }
 
   /* ------------------------------------------------------------------ */
@@ -723,16 +691,6 @@ var App = (function () {
   }
 
   function startRecording() {
-    // Live-text-only mode never touches MediaRecorder, so the recogniser
-    // gets the microphone to itself.
-    if (S.mode === 'TRANSCRIPT') {
-      S.chunks = []; S.blob = null; S.mime = ''; S.liveText = '';
-      S.startedAt = Date.now();
-      paintRecordingUI();
-      startTimer();
-      startRecognition();
-      return;
-    }
     if (typeof MediaRecorder === 'undefined' || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       toast('Recording not supported', 'Please open this app in Chrome or Safari on your phone.', 'err');
       return;
@@ -760,7 +718,6 @@ var App = (function () {
       paintRecordingUI();
       startTimer();
       startWaveform(stream);
-      startRecognition();
     })['catch'](function (err) { diagnoseMicFailure(err); });
   }
 
@@ -874,87 +831,10 @@ var App = (function () {
     } catch (e) { /* waveform is decorative — never block recording */ }
   }
 
-  /* Sinhala speech recognition. Chrome ends a session on silence, so we
-     restart it while recording. Every failure is reported on screen — a
-     silent recogniser is the hardest thing to debug in the field. */
-  function liveMsg(text, bad) {
-    $('liveCard').className = 'card';
-    $('livePreview').innerHTML = bad
-      ? '<span style="color:var(--rec);font-weight:600">' + esc(text) + '</span>'
-      : esc(text);
-  }
-
-  function startRecognition() {
-    if (S.mode === 'AUDIO') { $('liveCard').className = 'card hide'; return; }
-    var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) {
-      liveMsg('This browser cannot transcribe Sinhala. Use Chrome on Android, or dictate with your keyboard afterwards.', true);
-      return;
-    }
-    S.recognising = true;
-    S.srError = '';
-    liveMsg('Listening…');
-
-    var make = function () {
-      var r = new SR();
-      r.lang = 'si-LK';
-      r.continuous = true;          // ignored on Android — onend restarts us
-      r.interimResults = true;
-      r.maxAlternatives = 1;
-
-      r.onresult = function (ev) {
-        var finalTxt = '', interim = '';
-        for (var i = ev.resultIndex; i < ev.results.length; i++) {
-          var t = ev.results[i][0].transcript;
-          if (ev.results[i].isFinal) finalTxt += t + ' '; else interim += t;
-        }
-        if (finalTxt) S.liveText += finalTxt;
-        $('liveCard').className = 'card';
-        $('livePreview').textContent = (S.liveText + interim).trim();
-      };
-
-      r.onend = function () {
-        if (S.recognising) { try { S.speech = make(); S.speech.start(); } catch (e) {} }
-      };
-
-      r.onerror = function (e) {
-        var code = (e && e.error) || 'unknown';
-        S.srError = code;
-        diagPush('recognition error: ' + code);
-
-        if (code === 'no-speech' || code === 'aborted') return;   // onend restarts
-
-        S.recognising = false;
-        if (code === 'audio-capture') {
-          liveMsg('This phone will not record audio and transcribe at the same time. Switch “Capture mode” to “Live text only”, or use “Audio only” and dictate afterwards.', true);
-        } else if (code === 'not-allowed' || code === 'service-not-allowed') {
-          liveMsg('Speech recognition is not allowed. Allow the microphone for this site and reload.', true);
-        } else if (code === 'language-not-supported') {
-          liveMsg('This browser will not transcribe Sinhala (si-LK). Record the audio and dictate the text with your keyboard.', true);
-        } else if (code === 'network') {
-          liveMsg('No connection to the speech service. Check the internet — the recording is still being saved.', true);
-        } else {
-          liveMsg('Live transcription stopped (' + code + '). The recording is still being saved.', true);
-        }
-      };
-      return r;
-    };
-
-    try { S.speech = make(); S.speech.start(); }
-    catch (e) { S.recognising = false; liveMsg('Live transcription could not start on this phone.', true); }
-  }
-
-  function stopRecognition() {
-    S.recognising = false;
-    if (S.speech) { try { S.speech.stop(); } catch (e) {} S.speech = null; }
-  }
-
   function stopRecording(silent) {
     clearInterval(S.timerId);
     cancelAnimationFrame(S.rafId);
-    stopRecognition();
     S.duration = Math.round((Date.now() - S.startedAt) / 1000);
-    if (S.mode === 'TRANSCRIPT') { onCaptureFinished(); return; }
     if (S.rec && S.rec.state !== 'inactive') { try { S.rec.stop(); } catch (e) {} }
     else if (!silent) resetRecorderUI();
   }
@@ -967,8 +847,7 @@ var App = (function () {
   function onRecorderStop() {
     releaseStream();
     if (!S.chunks.length) {
-      diagPush('MediaRecorder produced 0 bytes');
-      toast('Nothing recorded', 'No audio was captured. If you were also transcribing, switch Capture mode to “Audio only” on this phone.', 'err');
+      toast('Nothing recorded', 'No audio was captured. Please try again.', 'err');
       resetRecorderUI();
       return;
     }
@@ -994,7 +873,6 @@ var App = (function () {
     $('chipDuration').textContent = mmss(S.duration);
     $('chipId').textContent = S.blob ? 'Saving audio…' : 'Saving…';
     $('reviewMeta').textContent = 'Play it back to check it captured the shopper, then save.';
-    $('transcriptEdit').value = (S.liveText || '').trim();
     $('transcriptEdit').value = '';
     $('transcriptEdit').className = 'textarea si hide';
     $('btnNoteToggle').textContent = 'Add a note (optional)';
@@ -1020,6 +898,7 @@ var App = (function () {
     prep.then(function (b64) {
       return api('processFeedback', {
         spgCode: S.spg.code,
+        outletCode: S.outlet.code,
         productCode: S.current.productCode,
         productName: S.current.productName,
         duration: S.current.duration,
@@ -1094,24 +973,71 @@ var App = (function () {
         var pending = it.status === 'PENDING_TRANSCRIPTION' || it.status === 'DRAFT';
         var failed = it.status === 'TRANSCRIPTION_FAILED';
         return '' +
-          '<div class="item">' +
+          '<div class="item" role="button" tabindex="0" onclick="App.openDetail(\'' + esc(it.feedbackId) + '\')">' +
             '<div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round">' +
             '<path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/></svg></div>' +
             '<div class="body">' +
               '<div class="t1"><span>' + esc(it.productName || it.productCode) + '</span>' +
                 '<span style="color:var(--muted);font-weight:600;font-size:12px">' + esc(it.time.slice(0, 5)) + '</span></div>' +
               '<div class="t2">' + esc(it.date) + ' · ' + mmss(it.duration) +
+                (it.outletCode ? ' · ' + esc(it.outletCode) : '') +
                 (pending ? ' · <span style="color:var(--muted)">transcribing…</span>' : '') +
                 (failed ? ' · <span style="color:var(--warn)">transcript failed</span>' : '') + '</div>' +
-              (it.transcript ? '<div class="t3">' + esc(it.transcript) + '</div>' : '') +
-              (it.hasAudio === false ? '<div class="t2" style="margin-top:8px">Text only — no recording</div>'
-                : '<button class="btn ghost sm" style="margin-top:10px;width:auto;padding:0 14px" ' +
-                  'onclick="App.play(this,\'' + esc(it.feedbackId) + '\')">▶ Play</button>') +
+              (it.transcript ? '<div class="t3">' + esc(it.transcript) + '</div>'
+                             : '<div class="t3" style="color:var(--muted)">Transcript not ready yet</div>') +
+              '<div class="t2" style="color:var(--accent);margin-top:8px;font-weight:650">Tap to open →</div>' +
             '</div>' +
           '</div>';
       }).join('');
     })['catch'](function () {
       list.innerHTML = '<div class="empty"><p>We could not load your history. Check your connection.</p></div>';
+    });
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* one feedback, opened from History                                  */
+  /* ------------------------------------------------------------------ */
+  function openDetail(feedbackId) {
+    go('detail');
+    $('dTitle').textContent = 'Feedback';
+    $('dMeta').textContent = 'Loading…';
+    $('dPlayer').innerHTML = '';
+    $('dTranscript').innerHTML = '<div class="empty" style="padding:20px"><div class="spinner" style="margin:0 auto"></div></div>';
+
+    api('getFeedbackDetail', { feedbackId: feedbackId, spgCode: S.spg.code }).then(function (r) {
+      if (!r.ok) {
+        $('dMeta').textContent = r.message || 'Not found.';
+        $('dTranscript').innerHTML = '';
+        return;
+      }
+      var it = r.item;
+      $('dTitle').textContent = it.productName || it.productCode;
+      $('dMeta').textContent = it.date + ' at ' + it.time.slice(0, 5) +
+                               (it.outletName ? ' · ' + it.outletName : '');
+      $('dChipOutlet').textContent = it.outletCode || '—';
+      $('dChipDuration').textContent = mmss(it.duration);
+      $('dChipId').textContent = it.feedbackId;
+
+      if (it.hasAudio) {
+        $('dPlayer').innerHTML =
+          '<button class="btn ghost sm" id="dPlayBtn" style="width:auto;padding:0 16px">▶ Play recording</button>';
+        $('dPlayBtn').addEventListener('click', function () { play(this, it.feedbackId); });
+      } else {
+        $('dPlayer').innerHTML = '<p class="placeholder">No recording saved for this feedback.</p>';
+      }
+
+      if (it.transcript) {
+        $('dTranscript').innerHTML = '<div class="transcript si">' + esc(it.transcript) + '</div>';
+      } else if (it.status === 'TRANSCRIPTION_FAILED') {
+        $('dTranscript').innerHTML = '<p class="placeholder"><b>The transcript could not be written.</b><br>' +
+          'The recording is safe. Your supervisor can run it again.</p>';
+      } else {
+        $('dTranscript').innerHTML = '<p class="placeholder dots"><span></span><span></span><span></span> ' +
+          'Being transcribed — check again in a minute.</p>';
+      }
+    })['catch'](function () {
+      $('dMeta').textContent = 'We could not load this feedback.';
+      $('dTranscript').innerHTML = '';
     });
   }
 
@@ -1131,141 +1057,29 @@ var App = (function () {
   }
 
   /* ------------------------------------------------------------------ */
-  /* diagnostics                                                        */
-  /* ------------------------------------------------------------------ */
-  function diagPush(line) {
-    var t = new Date().toISOString().slice(11, 19);
-    S.diag.push(t + '  ' + line);
-    if ($('diagLog')) $('diagLog').textContent = S.diag.join('\n');
-  }
-
-  function paintDiagFacts() {
-    var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    var mr = (typeof MediaRecorder !== 'undefined');
-    var rows = [
-      ['Address', location.protocol + '//' + location.hostname, location.protocol === 'https:' || location.hostname === 'localhost'],
-      ['Inside a frame', SANDBOXED ? 'yes — microphone blocked' : 'no', !SANDBOXED],
-      ['Audio recording', mr ? 'supported' : 'not supported', mr],
-      ['Recording format', mr ? (pickMime() || 'browser default') : '—', mr],
-      ['Speech recognition', SR ? 'available' : 'not available', !!SR],
-      ['Capture mode', S.mode, true]
-    ];
-    $('diagFacts').innerHTML = rows.map(function (r) {
-      return '<div class="diag-row"><span>' + esc(r[0]) + '</span><b class="' +
-             (r[2] ? 'diag-ok' : 'diag-bad') + '">' + esc(r[1]) + '</b></div>';
-    }).join('') +
-    '<div class="diag-row" style="display:block"><span>Browser</span>' +
-    '<div style="font-size:12px;color:var(--muted);margin-top:2px;word-break:break-word">' +
-    esc(navigator.userAgent) + '</div></div>';
-
-    if (navigator.permissions && navigator.permissions.query) {
-      navigator.permissions.query({ name: 'microphone' }).then(function (p) {
-        $('diagFacts').insertAdjacentHTML('beforeend',
-          '<div class="diag-row"><span>Microphone permission</span><b class="' +
-          (p.state === 'granted' ? 'diag-ok' : p.state === 'denied' ? 'diag-bad' : 'diag-warn') +
-          '">' + esc(p.state) + '</b></div>');
-      })['catch'](function () {});
-    }
-  }
-
-  /* Records for 4s, then runs the recogniser ALONE for 6s. That separation is
-     the whole point: it tells us whether each half works on its own. */
-  function runDiagTest() {
-    S.diag = []; S.diagRec = false; S.diagSr = false; diagPush('starting');
-    var btn = $('btnDiagRun'); btn.disabled = true; btn.textContent = 'Testing…';
-
-    var step1 = new Promise(function (resolve) {
-      if (typeof MediaRecorder === 'undefined' || !navigator.mediaDevices) { diagPush('PART 1 recording: unsupported'); return resolve(); }
-      navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
-        diagPush('PART 1 recording: microphone opened');
-        var chunks = [], mime = pickMime();
-        var rec = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
-        rec.ondataavailable = function (e) { if (e.data && e.data.size) chunks.push(e.data); };
-        rec.onstop = function () {
-          var bytes = chunks.reduce(function (n, c) { return n + c.size; }, 0);
-          S.diagRec = bytes > 1000;
-          diagPush('PART 1 recording: ' + bytes + ' bytes captured — ' + (S.diagRec ? 'OK' : 'FAILED'));
-          stream.getTracks().forEach(function (t) { t.stop(); });
-          resolve();
-        };
-        rec.start(250);
-        setTimeout(function () { try { rec.stop(); } catch (e) { resolve(); } }, 4000);
-      })['catch'](function (e) { diagPush('PART 1 recording: ' + (e.name || e) + ' — FAILED'); resolve(); });
-    });
-
-    step1.then(function () {
-      return new Promise(function (resolve) {
-        var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SR) { diagPush('PART 2 speech: not available in this browser — FAILED'); return resolve(); }
-        diagPush('PART 2 speech: say a few words in Sinhala now…');
-        var got = '', done = false, r = new SR();
-        r.lang = 'si-LK'; r.interimResults = true; r.continuous = true;
-        r.onresult = function (ev) {
-          for (var i = ev.resultIndex; i < ev.results.length; i++) got += ev.results[i][0].transcript;
-          $('diagLog').textContent = S.diag.join('\n') + '\n   heard: ' + got;
-        };
-        r.onerror = function (e) { S.srError = (e && e.error) || 'unknown'; diagPush('PART 2 speech: error ' + S.srError + ' — FAILED'); };
-        r.onend = function () {
-          if (done) return;
-          done = true;
-          S.diagSr = !!got.trim();
-          diagPush('PART 2 speech: heard "' + got.trim() + '" — ' + (S.diagSr ? 'OK' : 'nothing recognised'));
-          resolve();
-        };
-        try { r.start(); } catch (e) { diagPush('PART 2 speech: could not start — FAILED'); resolve(); }
-        setTimeout(function () { try { r.stop(); } catch (e) {} if (!done) { done = true; resolve(); } }, 6000);
-      });
-    }).then(function () {
-      diagPush('done');
-      diagPush('VERDICT: ' + verdict());
-      btn.disabled = false; btn.textContent = 'Run microphone test again';
-    });
-  }
-
-  function verdict() {
-    if (S.diagRec && S.diagSr) return 'both work — try Capture mode "Audio + live text". If the transcript stays empty while recording, this phone cannot do both at once: use "Audio only" and dictate.';
-    if (S.diagRec && !S.diagSr) return 'recording works, speech recognition does not (' + (S.srError || 'no result') + ') — use Capture mode "Audio only" and dictate the text.';
-    if (!S.diagRec && S.diagSr) return 'speech works, recording does not — use Capture mode "Live text only".';
-    return 'neither worked — check the address starts with https and that the microphone is allowed for this site.';
-  }
-
-  function copyDiag() {
-    var text = ['SPG Shopper Voice — device report', new Date().toISOString(),
-                navigator.userAgent, location.href, '', $('diagFacts').innerText, '', S.diag.join('\n')].join('\n');
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(function () { toast('Report copied', 'Paste it into a message.', 'ok'); })
-        ['catch'](function () { window.prompt('Copy this report:', text); });
-    } else { window.prompt('Copy this report:', text); }
-  }
-
-  /* ------------------------------------------------------------------ */
   /* boot                                                               */
   /* ------------------------------------------------------------------ */
   function boot() {
     $('btnLogin').addEventListener('click', login);
-    $('spgCode').addEventListener('keydown', function (e) { if (e.key === 'Enter') login(); });
+    $('spgCode').addEventListener('keydown', function (e) { if (e.key === 'Enter') $('outletCode').focus(); });
+    $('outletCode').addEventListener('keydown', function (e) { if (e.key === 'Enter') login(); });
     $('product').addEventListener('change', updateMicState);
     $('consent').addEventListener('change', updateMicState);
     $('micBtn').addEventListener('click', startRecording);
-    S.srSupported = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
-    Array.prototype.forEach.call(document.querySelectorAll('.mode'), function (b) {
-      b.addEventListener('click', function () { setMode(b.dataset.mode); });
-    });
-    $('btnNoteToggle').addEventListener('click', function () {
-      var t = $('transcriptEdit'), hidden = t.className.indexOf('hide') > -1;
-      t.className = 'textarea si' + (hidden ? '' : ' hide');
-      $('btnNoteToggle').textContent = hidden ? 'Hide note' : 'Add a note (optional)';
-      if (hidden) { t.focus(); t.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
-    });
-    $('btnDiagRun').addEventListener('click', runDiagTest);
-    $('btnDiagCopy').addEventListener('click', copyDiag);
-    var savedMode = null;
-    try { savedMode = localStorage.getItem('captureMode'); } catch (e) {}
-    setMode(savedMode || 'AUDIO');
+
     $('stopBtn').addEventListener('click', function () { stopRecording(); });
     Array.prototype.forEach.call(document.querySelectorAll('.nav button'), function (b) {
       b.addEventListener('click', function () { b.dataset.go === 'record' ? startNew() : go(b.dataset.go); });
     });
+
+    if (!resolveApiUrl()) {
+      var n = $('micWarning');
+      n.hidden = false;
+      n.innerHTML = '<b style="color:var(--rec)">This app is not linked to its server yet.</b><br>' +
+                    'Open <code>index.html</code>, find the <code>SPG_API_URL</code> line near the top, ' +
+                    'paste the Apps Script address ending in <code>/exec</code> between the quotes, and upload it again.';
+      $('btnLogin').disabled = true;
+    }
 
     // Warn if the page is running inside the Apps Script iframe (mic is blocked there).
     if (SANDBOXED) {
@@ -1276,26 +1090,12 @@ var App = (function () {
                     'but to record you must open the hosted app address (see README).';
     }
 
-    // One-time server address setup, only when nothing is configured yet.
-    if (!IN_GAS && !resolveApiUrl()) {
-      $('apiSetup').className = 'card';
-      $('btnLogin').disabled = true;
-    }
-    $('btnApiSave').addEventListener('click', function () {
-      var v = ($('apiInput').value || '').trim();
-      if (!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec/.test(v)) {
-        toast('That address does not look right', 'It should start with https://script.google.com/macros/s/ and end with /exec', 'err');
-        return;
-      }
-      try { localStorage.setItem('apiUrl', v); } catch (e) {}
-      $('apiSetup').className = 'card hide';
-      $('btnLogin').disabled = false;
-      toast('Address saved', 'You can sign in now.', 'ok');
-    });
-
-    var saved = null;
-    try { saved = localStorage.getItem('spgCode'); } catch (e) {}
-    if (saved) { $('spgCode').value = saved; }
+    try {
+      var savedSpg = localStorage.getItem('spgCode');
+      var savedOutlet = localStorage.getItem('outletCode');
+      if (savedSpg) $('spgCode').value = savedSpg;
+      if (savedOutlet) $('outletCode').value = savedOutlet;
+    } catch (e) {}
 
     window.addEventListener('beforeunload', function (e) {
       if (S.rec && S.rec.state === 'recording') { e.preventDefault(); e.returnValue = ''; }
@@ -1306,7 +1106,7 @@ var App = (function () {
 
   return {
     go: go, login: login, logout: logout, startNew: startNew,
-    save: save, discard: discard, play: play, setMode: setMode
+    save: save, discard: discard, play: play, openDetail: openDetail
   };
 })();
 </script>
