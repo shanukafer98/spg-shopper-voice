@@ -22,7 +22,7 @@
      var SPG_API_URL = "https://script.google.com/macros/s/AKfycbx.../exec";
      ================================================================== -->
 <script>
-  var SPG_API_URL = "https://script.google.com/macros/s/AKfycbwBv-QSXwA2ExytE7MWe3SKWU1gulmgTY4yO83w0tHYwzYlak3lKrVH8MUK3Vi-E8ke/exec";
+  var SPG_API_URL = "PASTE_YOUR_APPS_SCRIPT_WEB_APP_EXEC_URL_HERE";
 </script>
 
 </head>
@@ -527,9 +527,46 @@ var App = (function () {
       body: JSON.stringify(body),
       redirect: 'follow'
     }).then(function (r) {
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      return r.json();
+      return r.text().then(function (txt) {
+        // Apps Script answers a broken request with an HTML page, not JSON.
+        // Reporting that as "no internet" sends everyone hunting the wrong problem.
+        var data;
+        try {
+          data = JSON.parse(txt);
+        } catch (e) {
+          if (txt.indexOf('accounts.google.com') > -1 || txt.indexOf('ServiceLogin') > -1 ||
+              txt.indexOf('Sign in') > -1) {
+            throw new Error('NOT_PUBLIC');
+          }
+          // Pull a hint out of the HTML error page without writing a literal
+          // title tag here — the static build strips those from the body.
+          var hint = txt.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80);
+          throw new Error('SERVER_ERROR|' + (hint || ('HTTP ' + r.status)));
+        }
+        if (!r.ok) throw new Error('SERVER_ERROR|HTTP ' + r.status);
+        return data;
+      });
     });
+  }
+
+  /* Turn a thrown error into something a person can act on. */
+  function failureMessage(err) {
+    var m = String((err && err.message) || err || '');
+    if (m.indexOf('NOT_PUBLIC') > -1) {
+      return { title: 'Server is not open to the app',
+               body: 'The Apps Script deployment must be set to "Anyone". Tell your supervisor.' };
+    }
+    if (m.indexOf('SERVER_ERROR') > -1) {
+      return { title: 'The server rejected this',
+               body: 'Not an internet problem. Supervisor: open Apps Script > Executions and read the latest error. (' +
+                     m.split('|')[1] + ')' };
+    }
+    if (m.indexOf('NO_API_URL') > -1) {
+      return { title: 'App is not linked to the server',
+               body: 'The SPG_API_URL line in index.html was never filled in.' };
+    }
+    return { title: 'No connection',
+             body: 'We could not reach the server. Check your internet and try again.' };
   }
 
   /* ------------------------------------------------------------------ */
@@ -609,9 +646,10 @@ var App = (function () {
       paintHome(r.todayCount || 0);
       fillProducts();
       go('home');
-    })['catch'](function () {
+    })['catch'](function (err) {
       busy(false);
-      toast('No connection', 'We could not reach the server. Check your internet and try again.', 'err');
+      var f = failureMessage(err);
+      toast(f.title, f.body, 'err');
     });
   }
 
@@ -918,9 +956,10 @@ var App = (function () {
       S.current.feedbackId = r.feedbackId;
       $('chipId').textContent = r.feedbackId;
       $('btnSave').disabled = false;
-    })['catch'](function () {
+    })['catch'](function (err) {
       $('chipId').textContent = 'Not saved';
-      toast('Upload failed', 'Your connection dropped. The recording is still on this phone — try recording again.', 'err');
+      var f = failureMessage(err);
+      toast(f.title, f.body, 'err');
     });
   }
 
@@ -938,7 +977,7 @@ var App = (function () {
         $('successId').textContent = r.feedbackId;
         bumpTodayCount();
         go('success');
-      })['catch'](function () { busy(false); toast('No connection', 'We could not save. Please try again.', 'err'); });
+      })['catch'](function (err) { busy(false); var f = failureMessage(err); toast(f.title, f.body, 'err'); });
   }
 
   function discard() {
@@ -989,8 +1028,9 @@ var App = (function () {
             '</div>' +
           '</div>';
       }).join('');
-    })['catch'](function () {
-      list.innerHTML = '<div class="empty"><p>We could not load your history. Check your connection.</p></div>';
+    })['catch'](function (err) {
+      var f = failureMessage(err);
+      list.innerHTML = '<div class="empty"><p><b>' + esc(f.title) + '</b><br>' + esc(f.body) + '</p></div>';
     });
   }
 
@@ -1035,9 +1075,10 @@ var App = (function () {
         $('dTranscript').innerHTML = '<p class="placeholder dots"><span></span><span></span><span></span> ' +
           'Being transcribed — check again in a minute.</p>';
       }
-    })['catch'](function () {
-      $('dMeta').textContent = 'We could not load this feedback.';
-      $('dTranscript').innerHTML = '';
+    })['catch'](function (err) {
+      var f = failureMessage(err);
+      $('dMeta').textContent = f.title;
+      $('dTranscript').innerHTML = '<p class="placeholder">' + esc(f.body) + '</p>';
     });
   }
 
@@ -1050,9 +1091,10 @@ var App = (function () {
       el.controls = true; el.autoplay = true;
       el.src = 'data:' + r.mimeType + ';base64,' + r.base64;
       btn.parentNode.replaceChild(el, btn);
-    })['catch'](function () {
+    })['catch'](function (err) {
       btn.disabled = false; btn.textContent = '▶ Play';
-      toast('Cannot play', 'Please check your connection.', 'err');
+      var f = failureMessage(err);
+      toast(f.title, f.body, 'err');
     });
   }
 
