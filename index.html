@@ -483,26 +483,23 @@ audio{width:100%;margin-top:10px;border-radius:12px}
   </nav>
 </div>
 
-<!-- ===================== CONSENT GATE ===================== -->
+<!-- ===================== CONSENT REMINDER ===================== -->
 <div class="sheet-backdrop" id="consentGate" hidden>
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="cgTitle">
     <div class="sheet-grip"></div>
-    <h2 id="cgTitle">Ask the shopper first</h2>
-    <p class="sub">Do not record anyone without asking. Say something like:</p>
+    <h2 id="cgTitle">Ask the shopper on the recording</h2>
+    <p class="sub">Recording starts as soon as you tap OK. Ask for permission
+       <b>first</b>, so the shopper's answer is captured on the recording.</p>
 
     <div class="say-box">
       <p class="say-en">“Good day! Could you share a short opinion about this product? May I record it?”</p>
       <p class="say-si si">“සුබ දවසක්! මේ නිෂ්පාදනය ගැන ඔබේ අදහස කෙටියෙන් කියන්න පුළුවන්ද? මම ඒක පටිගත කර ගන්නද?”</p>
     </div>
 
-    <p class="sub" style="font-size:12.5px">If the shopper says no, thank them and move on — that is a normal answer.</p>
+    <p class="sub" style="font-size:12.5px">If the shopper says no, tap Stop and discard the recording.</p>
 
     <div class="btn-row">
-      <button class="btn ghost" id="cgCancel" style="flex:0 0 38%">Cancel</button>
-      <button class="btn" id="cgConfirm">
-        <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
-        Shopper agreed
-      </button>
+      <button class="btn" id="cgConfirm">OK</button>
     </div>
   </div>
 </div>
@@ -1169,7 +1166,6 @@ var App = (function () {
     $('outletCode').addEventListener('keydown', function (e) { if (e.key === 'Enter') login(); });
     $('product').addEventListener('change', updateMicState);
     $('micBtn').addEventListener('click', openConsentGate);
-    $('cgCancel').addEventListener('click', closeConsentGate);
     $('cgConfirm').addEventListener('click', function () {
       closeConsentGate();
       startRecording();            // this click is the user gesture getUserMedia needs
