@@ -22,7 +22,7 @@
      var SPG_API_URL = "https://script.google.com/macros/s/AKfycbx.../exec";
      ================================================================== -->
 <script>
-  var SPG_API_URL = "https://script.google.com/macros/s/AKfycbwBv-QSXwA2ExytE7MWe3SKWU1gulmgTY4yO83w0tHYwzYlak3lKrVH8MUK3Vi-E8ke/exec";
+  var SPG_API_URL = "PASTE_YOUR_APPS_SCRIPT_WEB_APP_EXEC_URL_HERE";
 </script>
 
 </head>
@@ -192,6 +192,10 @@ h3{font-size:15px;font-weight:650}
 /* ---------- transcript ---------- */
 .transcript{font-size:17px;line-height:1.9;color:var(--ink);white-space:pre-wrap;word-break:break-word;
   font-family:"Noto Sans Sinhala",var(--font)}
+.transcript .spk{display:block;margin-top:12px;font-size:11px;font-weight:700;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--muted);font-family:var(--font)}
+.transcript .spk:first-child{margin-top:0}
+.transcript .spk.shopper{color:var(--accent)}
 .transcript.live{color:var(--ink-2)}
 .transcript.live::after{content:"";display:inline-block;width:2px;height:1.05em;background:var(--accent);
   margin-left:3px;vertical-align:-2px;animation:blink 1s step-end infinite}
@@ -1037,6 +1041,22 @@ var App = (function () {
   /* ------------------------------------------------------------------ */
   /* one feedback, opened from History                                  */
   /* ------------------------------------------------------------------ */
+  /* Turn "SPG: …" / "Shopper: …" lines into labelled blocks so the SPG can see
+     at a glance which words were the shopper's. */
+  function renderTranscript(text) {
+    var lines = String(text).split(/\r?\n/);
+    var labelled = lines.some(function (l) { return /^\s*(spg|shopper|speaker)\s*\d*\s*:/i.test(l); });
+    if (!labelled) return esc(text);
+
+    return lines.map(function (l) {
+      var m = l.match(/^\s*(spg|shopper\s*\d*|speaker\s*\d*)\s*:\s*([\s\S]*)$/i);
+      if (!m) return esc(l);
+      var who = m[1].trim();
+      var cls = /shopper/i.test(who) ? 'spk shopper' : 'spk';
+      return '<span class="' + cls + '">' + esc(who) + '</span>' + esc(m[2]);
+    }).join('\n');
+  }
+
   function openDetail(feedbackId) {
     go('detail');
     $('dTitle').textContent = 'Feedback';
@@ -1067,7 +1087,7 @@ var App = (function () {
       }
 
       if (it.transcript) {
-        $('dTranscript').innerHTML = '<div class="transcript si">' + esc(it.transcript) + '</div>';
+        $('dTranscript').innerHTML = '<div class="transcript si">' + renderTranscript(it.transcript) + '</div>';
       } else if (it.status === 'TRANSCRIPTION_FAILED') {
         $('dTranscript').innerHTML = '<p class="placeholder"><b>The transcript could not be written.</b><br>' +
           'The recording is safe. Your supervisor can run it again.</p>';
