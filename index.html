@@ -268,6 +268,21 @@ audio{width:100%;margin-top:10px;border-radius:12px}
   border-top-color:var(--accent);animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .overlay p{margin-top:14px;font-size:14px;font-weight:600;color:var(--ink-2);text-align:center}
+/* ---------- consent sheet ---------- */
+.sheet-backdrop{position:fixed;inset:0;z-index:95;display:flex;align-items:flex-end;justify-content:center;
+  background:rgba(8,11,22,.55);backdrop-filter:blur(4px);animation:fadeIn .2s}
+.sheet-backdrop[hidden]{display:none}
+.sheet{width:100%;max-width:520px;background:var(--glass);backdrop-filter:blur(26px) saturate(170%);
+  -webkit-backdrop-filter:blur(26px) saturate(170%);border:1px solid var(--line);
+  border-radius:26px 26px 0 0;padding:14px 20px calc(var(--safe-b) + 22px);
+  box-shadow:var(--shadow-lg);animation:sheetUp .3s cubic-bezier(.22,1,.36,1)}
+@keyframes sheetUp{from{transform:translateY(100%)}to{transform:none}}
+.sheet-grip{width:42px;height:4px;border-radius:99px;background:var(--line);margin:0 auto 16px}
+.sheet h2{margin-bottom:2px}
+.say-box{margin-top:14px;padding:14px 16px;border-radius:var(--r-sm);
+  background:var(--accent-soft);border:1px solid var(--line)}
+.say-en{margin:0;font-size:15px;font-weight:600;line-height:1.5}
+.say-si{margin:8px 0 0;font-size:14.5px;color:var(--ink-2);line-height:1.9}
 .hide{display:none!important}
 </style>
 
@@ -343,13 +358,6 @@ audio{width:100%;margin-top:10px;border-radius:12px}
     <div class="card" id="setupCard">
       <label class="label" for="product">Product</label>
       <select id="product" class="select"></select>
-
-      <label class="consent" for="consent">
-        <input type="checkbox" id="consent">
-        <span><b>Shopper agreed to the recording.</b><br>
-        Please ask the shopper for permission before recording their feedback.</span>
-      </label>
-
 
     </div>
 
@@ -473,6 +481,30 @@ audio{width:100%;margin-top:10px;border-radius:12px}
       </button>
     </div>
   </nav>
+</div>
+
+<!-- ===================== CONSENT GATE ===================== -->
+<div class="sheet-backdrop" id="consentGate" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="cgTitle">
+    <div class="sheet-grip"></div>
+    <h2 id="cgTitle">Ask the shopper first</h2>
+    <p class="sub">Do not record anyone without asking. Say something like:</p>
+
+    <div class="say-box">
+      <p class="say-en">“Good day! Could you share a short opinion about this product? May I record it?”</p>
+      <p class="say-si si">“සුබ දවසක්! මේ නිෂ්පාදනය ගැන ඔබේ අදහස කෙටියෙන් කියන්න පුළුවන්ද? මම ඒක පටිගත කර ගන්නද?”</p>
+    </div>
+
+    <p class="sub" style="font-size:12.5px">If the shopper says no, thank them and move on — that is a normal answer.</p>
+
+    <div class="btn-row">
+      <button class="btn ghost" id="cgCancel" style="flex:0 0 38%">Cancel</button>
+      <button class="btn" id="cgConfirm">
+        <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+        Shopper agreed
+      </button>
+    </div>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -687,7 +719,7 @@ var App = (function () {
   /* ------------------------------------------------------------------ */
   function startNew() {
     if (!S.spg) { go('login'); return; }
-    $('consent').checked = false;
+    closeConsentGate();
     $('product').value = '';
     resetRecorderUI();
     go('record');
@@ -702,11 +734,11 @@ var App = (function () {
         'Open the hosted app address instead.';
       return;
     }
-    var ready = !!$('product').value && $('consent').checked;
+    var ready = !!$('product').value;
     $('micBtn').disabled = !ready;
     $('micHint').textContent = ready
-      ? 'Ask the shopper for feedback and tap the microphone to begin.'
-      : 'Choose a product and confirm consent to enable recording.';
+      ? 'Tap the microphone — you will be reminded to ask the shopper first.'
+      : 'Choose a product to enable recording.';
   }
 
   function resetRecorderUI() {
@@ -719,6 +751,16 @@ var App = (function () {
     $('transcriptEdit').value = '';
     $('setupCard').classList.remove('hide');
   }
+
+  /* ------------------------------------------------------------------ */
+  /* consent gate — shown every time, before the microphone opens        */
+  /* ------------------------------------------------------------------ */
+  function openConsentGate() {
+    if (!$('product').value) { toast('Choose a product first', '', 'err'); return; }
+    $('consentGate').hidden = false;
+    $('cgConfirm').focus();
+  }
+  function closeConsentGate() { $('consentGate').hidden = true; }
 
   /* ------------------------------------------------------------------ */
   /* recording                                                          */
@@ -1126,8 +1168,18 @@ var App = (function () {
     $('spgCode').addEventListener('keydown', function (e) { if (e.key === 'Enter') $('outletCode').focus(); });
     $('outletCode').addEventListener('keydown', function (e) { if (e.key === 'Enter') login(); });
     $('product').addEventListener('change', updateMicState);
-    $('consent').addEventListener('change', updateMicState);
-    $('micBtn').addEventListener('click', startRecording);
+    $('micBtn').addEventListener('click', openConsentGate);
+    $('cgCancel').addEventListener('click', closeConsentGate);
+    $('cgConfirm').addEventListener('click', function () {
+      closeConsentGate();
+      startRecording();            // this click is the user gesture getUserMedia needs
+    });
+    $('consentGate').addEventListener('click', function (e) {
+      if (e.target === $('consentGate')) closeConsentGate();
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && !$('consentGate').hidden) closeConsentGate();
+    });
 
     $('stopBtn').addEventListener('click', function () { stopRecording(); });
     Array.prototype.forEach.call(document.querySelectorAll('.nav button'), function (b) {
